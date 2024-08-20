@@ -51,12 +51,12 @@ contacts = np.zeros([12, len(t)])
 for i in range(12):
     contacts[i, :] = (np.abs(p + vertices[i, :].reshape(3,1) - np.array([0, 1, 1.25]).reshape(3,1)) < 0.5 * np.ones((3,1))).all(axis=0)
 
-#fig = plot_trajectory(t,
-#                      p, p_dot,
-#                      r, omega,
-#                      contacts,
-#                      rec_pos, rec_sl, rec_rot)
-#fig.savefig("plot.png")
+fig = plot_trajectory(t,
+                      p, p_dot,
+                      r, omega,
+                      contacts,
+                      rec_pos, rec_sl, rec_rot)
+fig.savefig("plot.png")
 ani = animate_trajectory(t,
                         p, p_dot,
                         r, omega,
