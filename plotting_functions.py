@@ -112,12 +112,89 @@ def getNumTrials(t):
     return n
 
 
+def init_3dplot(t, p,
+                rec_pos, rec_sl, rec_rot):
+    n = getNumTrials(t)
+    
+    # Find the ranges
+    pos_range = (min(p.flatten()) - 0.1, max(p.flatten()) + 0.1)
+    range_3d = max(np.abs(pos_range))
+
+     # Set up a figure with aspect ration 3:2
+    fig = plt.figure(constrained_layout=True, figsize=7.5 * np.array([4, 2]))
+    gs = GridSpec(12, 2, figure=fig)
+
+    # 3D Plot
+    ax3d = fig.add_subplot(gs[:, :], projection='3d')
+    ax3d.set_xlabel(r"$x$ [m]")
+    ax3d.set_ylabel(r"$y$ [m]")
+    ax3d.set_zlabel(r"$z$ [m]")
+    ax3d.set_xlim((-range_3d , range_3d))
+    ax3d.set_ylim((-range_3d, range_3d))
+    ax3d.set_zlim((-0.5 * range_3d , 1.5 * range_3d))
+    plot_rectoid(ax3d, rec_pos, rec_sl, rec_rot,
+                 facecolors='xkcd:grey', edgecolor="black", alpha=0.5)
+    ax3d.view_init(elev=90, azim=65)
+
+    lines3d = []
+    atts3d = []
+    for i in range(n):
+        line3d, = ax3d.plot([], [], [], color=delft_blue)
+        if t.ndim == 1:
+            att3d = ax3d.quiver(p[0, 0], p[1, 0], p[2, 0], 1, 0, 0,
+                            length=0.3, color="black")
+        else:
+            att3d = ax3d.quiver(p[i, 0, 0], p[i, 1, 0], p[i, 2, 0], 1, 0, 0,
+                            length=0.3, color="black")
+            
+        lines3d += [line3d]
+        atts3d += [att3d]
+
+    return (fig, ax3d, lines3d, atts3d)
+
+def anim_3d_plot(t,
+                p,
+                r,
+                rec_pos, rec_sl, rec_rot):
+    
+    (fig, ax3d, lines3d, atts3d) = init_3dplot(t, p,
+                                                rec_pos, rec_sl, rec_rot)
+    
+    n = getNumTrials(t)
+
+    if n == 1:
+        t = t.reshape([1, len(t)])
+        p = p.reshape([1, p.shape[0], p.shape[1]])
+        r = r.reshape([1, len(r)])
+    
+    # Update function for animation
+    def update(frame):
+        nonlocal atts3d
+        for i in range(n): 
+            dir_vec = np.array([r[i][j].as_matrix() @ np.array([0, 1, 0]) for j in range(len(r[i]))]).T
+            
+            lines3d[i].set_data(p[i, 0, :frame], p[i, 1, :frame])
+            lines3d[i].set_3d_properties(p[i, 2, :frame])
+
+            atts3d[i].remove()    
+            atts3d[i] = ax3d.quiver(
+                p[i, 0, max(0, frame-1)], p[i, 1, max(0, frame-1)], p[i, 2, max(0, frame-1)],
+                dir_vec[0, max(0, frame-1)], dir_vec[1, max(0, frame-1)], dir_vec[2, max(0, frame-1)],
+                length=0.3, color="black"
+            )
+            
+        return (*lines3d, *atts3d)
+
+    # Run Animation
+    return FuncAnimation(fig, update, frames=t.shape[1], interval=(max(t[:, -1]) - min(t[:, 0])) / t.shape[1] * 1e3, blit=True)
+
 def init_plot(t,
               p, p_dot,
               r, omega,
               contacts,
               rec_pos, rec_sl, rec_rot,
-              des_pos=None):
+              des_pos=None,
+              orig_traj=None):
     
     n = getNumTrials(t)
 
@@ -133,20 +210,23 @@ def init_plot(t,
         t_range = (min(t[:, 0]), max(t[:, -1]))
     
     # Set up a figure with aspect ration 3:2
-    fig = plt.Figure(constrained_layout=True, figsize=7.5 * np.array([4, 2]))
+    fig = plt.figure(constrained_layout=True, figsize=7.5 * np.array([4, 2]))
     gs = GridSpec(12, 2, figure=fig)
 
-    # 3D Plot
+    # 3D Plot+ np.random.uniform(-sigma, sigma)
     ax3d = fig.add_subplot(gs[:-2, 0], projection='3d')
     ax3d.set_xlabel(r"$x$ [m]")
     ax3d.set_ylabel(r"$y$ [m]")
     ax3d.set_zlabel(r"$z$ [m]")
-    ax3d.set_xlim((-range_3d / 2, range_3d / 2))
-    ax3d.set_ylim((0.0, range_3d))
-    ax3d.set_zlim((0, range_3d))
+    ax3d.set_xlim((-range_3d, range_3d))
+    ax3d.set_ylim((-range_3d, range_3d))
+    ax3d.set_zlim((-0.5 * range_3d, 1.5 * range_3d))
     plot_rectoid(ax3d, rec_pos, rec_sl, rec_rot,
                  facecolors='xkcd:grey', edgecolor="black", alpha=0.5)
-    ax3d.view_init(elev=30, azim=65)
+    if orig_traj is not None:
+        vals = orig_traj(np.linspace(0, 1, 100))
+        ax3d.plot(vals[0, :], vals[1, :], vals[2, :], color="black", linestyle=linestyle1)
+    ax3d.view_init(elev=30, azim=55)
 
     # Position Plot
     axPos = fig.add_subplot(gs[0:3, 1])
@@ -273,7 +353,8 @@ def init_plot(t,
 def plot_trajectory(t, p, p_dot, 
                     r, omega, contacts,
                     rec_pos, rec_sl, rec_rot,
-                    des_pos=None):
+                    des_pos=None,
+                    orig_traj=None):
     
     (fig, ax3d, lines3d, atts3d,
     linesPosX, linesPosY, linesPosZ,
@@ -283,7 +364,8 @@ def plot_trajectory(t, p, p_dot,
     linesRatesX, linesRatesY, linesRatesZ,
     linesContacts) = init_plot(
         t, p, p_dot, r, omega, contacts,
-        rec_pos, rec_sl, rec_rot)
+        rec_pos, rec_sl, rec_rot,
+        des_pos, orig_traj)
     
     n = getNumTrials(t)
 
@@ -326,6 +408,145 @@ def plot_trajectory(t, p, p_dot,
     return fig
 
 
+def init_anim(t,
+              p, p_dot,
+              r, omega,
+              contacts,
+              rec_pos, rec_sl, rec_rot,
+              des_pos=None):
+    
+    n = getNumTrials(t)
+
+    # Find the ranges
+    pos_range = (min(p.flatten()) - 0.1, max(p.flatten()) + 0.1)
+    vel_range = (min(p_dot.flatten()) - 0.1, max(p_dot.flatten()) + 0.1)
+    att_range = (-180.0, 180.0)
+    range_3d = max(np.abs(pos_range))
+    if t.ndim == 1:
+        t_range = (t[0], t[-1])
+    else:
+        t_range = (min(t[:, 0]), max(t[:, -1]))
+    
+    # Set up a figure with aspect ration 3:2
+    fig = plt.figure(constrained_layout=True, figsize=7.5 * np.array([4, 2]))
+    gs = GridSpec(12, 2, figure=fig)
+
+    # 3D Plot
+    ax3d = fig.add_subplot(gs[:, 0], projection='3d')
+    ax3d.set_xlabel(r"$x$ [m]")
+    ax3d.set_ylabel(r"$y$ [m]")
+    ax3d.set_zlabel(r"$z$ [m]")
+    ax3d.set_xlim((-range_3d / 2, range_3d / 2))
+    ax3d.set_ylim((0.0, range_3d))
+    ax3d.set_zlim((0, range_3d))
+    plot_rectoid(ax3d, rec_pos, rec_sl, rec_rot,
+                 facecolors='xkcd:grey', edgecolor="black", alpha=0.5)
+    ax3d.view_init(elev=30, azim=65)
+
+    # Position Plot
+    axPos = fig.add_subplot(gs[0:3, 1])
+    axPos.set_xlabel("")
+    axPos.set_ylim(pos_range)
+    axPos.tick_params(labelbottom=False)
+    axPos.set_ylabel(r"Position [m]")
+
+    # Velocity Plot
+    axVel = fig.add_subplot(gs[3:6, 1], sharex=axPos)
+    axVel.set_ylim(vel_range)
+    axVel.set_ylabel(r"Velocity [m / s]")
+    axVel.tick_params(labelbottom=False)
+
+    # Attitude Plot
+    axAtt = fig.add_subplot(gs[6:9, 1], sharex=axPos)
+    axAtt.set_ylim(att_range)
+    axAtt.set_ylabel(r"Attitude [$^\circ$]")
+    axAtt.tick_params(labelbottom=False)
+
+
+    # Contact Plot
+    axContact = fig.add_subplot(gs[9:12, 1], sharex=axPos)
+    axContact.set_xlim(t_range)
+    axContact.set_xlabel(r"Time [s]")
+    axContact.set_yticks([i for i in range(14)])
+    axContact.set_yticklabels([rf"$v_{{{i}}}$" for i in range(14)])
+    axContact.set_ylim((0.5, 12.5))
+    axContact.grid(axis='y')
+
+    lines3d = []
+    atts3d = []
+    linesPosX = []
+    linesPosY = []
+    linesPosZ = []
+    linesDesPosX = []
+    linesDesPosY = []
+    linesDesPosZ = []
+    linesVelX = []
+    linesVelY = []
+    linesVelZ = []
+    linesAttX = []
+    linesAttY = []
+    linesAttZ = []
+    linesContacts = []
+
+    for i in range(n):
+        line3d, = ax3d.plot([], [], [], color=delft_blue)
+        if t.ndim == 1:
+            att3d = ax3d.quiver(p[0, 0], p[1, 0], p[2, 0], 1, 0, 0,
+                            length=0.3, color="black")
+        else:
+            att3d = ax3d.quiver(p[i, 0, 0], p[i, 1, 0], p[i, 2, 0], 1, 0, 0,
+                            length=0.3, color="black")
+        linePosX, = axPos.plot([], [], label=r"$x$", color=color_x, linestyle=linestyle0)
+        linePosY, = axPos.plot([], [], label=r"$y$", color=color_y, linestyle=linestyle0)
+        linePosZ, = axPos.plot([], [], label=r"$z$", color=color_z, linestyle=linestyle0)
+        lineDesPosX, = axPos.plot([], [], color="black", linestyle=linestyle2)
+        lineDesPosY, = axPos.plot([], [], color="black", linestyle=linestyle2)
+        lineDesPosZ, = axPos.plot([], [], color="black", linestyle=linestyle2)
+        lineVelX, = axVel.plot([], [], label=r"$\dot{x}$", color=color_x, linestyle=linestyle1)
+        lineVelY, = axVel.plot([], [], label=r"$\dot{y}$", color=color_y, linestyle=linestyle1)
+        lineVelZ, = axVel.plot([], [], label=r"$\dot{z}$", color=color_z, linestyle=linestyle1)
+        lineAttX, = axAtt.plot([], [], label=r"$\varphi$", color=color_x, linestyle=linestyle0)
+        lineAttY, = axAtt.plot([], [], label=r"$\theta$", color=color_y, linestyle=linestyle0)
+        lineAttZ, = axAtt.plot([], [], label=r"$\psi$", color=color_z, linestyle=linestyle0)
+        contactLines = []
+        for i in range(12):
+            line,  = axContact.plot([], [],
+                                    linestyle="", marker="o", color=color_contact,
+                                    markersize=4)
+            contactLines += [line]
+        
+        lines3d += [line3d]
+        atts3d += [att3d]
+        linesPosX += [linePosX]
+        linesPosY += [linePosY]
+        linesPosZ += [linePosZ]
+        linesDesPosX += [lineDesPosX]
+        linesDesPosY += [lineDesPosY]
+        linesDesPosZ += [lineDesPosZ]
+        linesVelX += [lineVelX]
+        linesVelY += [lineVelY]
+        linesVelZ += [lineVelZ]
+        linesAttX += [lineAttX]
+        linesAttY += [lineAttY]
+        linesAttZ += [lineAttZ]
+        linesContacts += [contactLines]
+
+    if n == 1:
+        axPos.legend(loc='upper left')
+        axVel.legend(loc='upper left')
+        axAtt.legend(loc='upper left')
+    else:
+        axPos.legend(labels=[r"$x$", r"$y$", r"$z$"], loc='upper left')
+        axVel.legend(labels=[r"$\dot{x}$", r"$\dot{y}$", r"$\dot{z}$"], loc='upper left')
+        axAtt.legend(labels=[r"$\varphi$", r"$\theta$", r"$\psi$"], loc='upper left')
+
+    return (fig, ax3d, lines3d, atts3d,
+            linesPosX, linesPosY, linesPosZ,
+            linesDesPosX, linesDesPosY, linesDesPosZ,
+            linesVelX, linesVelY, linesVelZ,
+            linesAttX, linesAttY, linesAttZ,
+            linesContacts)
+
 def animate_trajectory(t, p, p_dot, 
                        r, omega, contacts,
                        rec_pos, rec_sl, rec_rot,
@@ -336,8 +557,7 @@ def animate_trajectory(t, p, p_dot,
     linesDesPosX, linesDesPosY, linesDesPosZ,
     linesVelX, linesVelY, linesVelZ,
     linesAttX, linesAttY, linesAttZ,
-    linesRatesX, linesRatesY, linesRatesZ,
-    linesContacts) = init_plot(
+    linesContacts) = init_anim(
         t, p, p_dot, r, omega, contacts,
         rec_pos, rec_sl, rec_rot)
     
@@ -360,7 +580,7 @@ def animate_trajectory(t, p, p_dot,
         for i in range(n): 
             att_pry = np.array([rot.as_euler(seq="xyz", degrees=True).T for rot in r[i]]).T
             contactsPlotData = (np.arange(1, 13).reshape(12, 1) * contacts[i]).T
-            dir_vec = np.array([r[i][j].as_matrix() @ np.array([1, 0, 0]) for j in range(len(r[i]))]).T
+            dir_vec = np.array([r[i][j].as_matrix() @ np.array([0, 1, 0]) for j in range(len(r[i]))]).T
             
             lines3d[i].set_data(p[i, 0, :frame], p[i, 1, :frame])
             lines3d[i].set_3d_properties(p[i, 2, :frame])
@@ -384,16 +604,14 @@ def animate_trajectory(t, p, p_dot,
             linesAttX[i].set_data(t[i, :frame], att_pry[0, :frame])
             linesAttY[i].set_data(t[i, :frame], att_pry[1, :frame])
             linesAttZ[i].set_data(t[i, :frame], att_pry[2, :frame])
-            linesRatesX[i].set_data(t[i, :frame], omega[i, 0,:frame])
-            linesRatesY[i].set_data(t[i, :frame], omega[i, 1,:frame])
-            linesRatesZ[i].set_data(t[i, :frame], omega[i, 2,:frame])
             for j in range(12):
                 linesContacts[i][j].set_data(t[i, :frame], contactsPlotData[:frame, j])
-        return (lines3d, atts3d,
-                linesPosX, linesPosY, linesPosZ,
-                linesDesPosX, linesDesPosY, linesDesPosZ,
-                linesVelX, linesVelY, linesVelZ,
-                *linesContacts)
+        return (lines3d[0], atts3d[0],
+                linesPosX[0], linesPosY[0], linesPosZ[0],
+                linesDesPosX[0], linesDesPosY[0], linesDesPosZ[0],
+                linesVelX[0], linesVelY[0], linesVelZ[0],
+                linesAttX[0], linesAttY[0], linesAttZ[0], 
+                *linesContacts[0])
 
     # Run Animation
     return FuncAnimation(fig, update, frames=len(t[0]), interval=max(t[:, -1]) / len(t[0]) * 1e3, blit=True)
