@@ -2,8 +2,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 import matplotlib.pyplot as plt
 
-from plotting_functions import plot_topview, plot_pos_vel, add_pos_line, add_vel_line
-
+from plotting_functions import anim_pos_vel_plot
 
 from pathlib import Path
 from rosbags.typesys import Stores, get_types_from_msg, get_typestore
@@ -92,68 +91,22 @@ def rosbag2data(path: str):
     contact = np.array(contact)
     motorForces = np.array(motorForces)
 
-    cutoff = 50
+    cutoff = 100
 
     return (t_estimator[cutoff: -cutoff], estimator_p[cutoff:-cutoff, :], estimator_pdot[cutoff:-cutoff, :], estimator_att[cutoff:-cutoff],
             t_contact[cutoff:-cutoff], contact[cutoff:-cutoff, :],
             t_motorForces[cutoff:-cutoff], motorForces[cutoff:-cutoff, :]) 
 
 
-paths = [
-    "/home/anton/projects/colliding-drone/rosbags/real_collisions/29-08-24/2024-08-29-21-46-03-replanMegaSuccess.bag"
-    #"/home/anton/projects/colliding-drone/rosbags/real_collisions/29-08-24/2024-08-29-22-13-37-2msCollisionSuccess.bag",
-    #"/home/anton/projects/colliding-drone/rosbags/real_collisions/29-08-24/2024-08-29-22-24-00-2p5msCollisionSuccess.bag",
-    #"/home/anton/projects/colliding-drone/rosbags/real_collisions/29-08-24/2024-08-29-22-44-12-2p75msCollisionSuccess.bag",
-    #"/home/anton/projects/colliding-drone/rosbags/real_collisions/30-08-24/2024-08-30-17-33-30-3ms-collisionSuccess.bag",
-    #"/home/anton/projects/colliding-drone/rosbags/real_collisions/30-08-24/2024-08-30-18-41-16-3p25msCollisionSuccess.bag"
-    ]
+paths = ["/home/anton/projects/colliding-drone/rosbags/real_collisions/30-08-24/2024-08-30-18-41-16-3p25msCollisionSuccess.bag"]
 
 (t_estimator, estimator_p, estimator_pdot, estimator_att,
     t_contact, contacts,
     t_motorForces, motorForces)  = rosbag2data(paths[0])
 
 t_estimator = t_estimator - t_estimator[0]
-#fig = plot_pos_vel(t_estimator, 1, 
-#                   estimator_p.T, estimator_pdot.T,
-#                   np.array([0.0, 3.4, 1.75]), np.array([0.6, 0.6, 0.6]), Rotation.identity())
-#fig.set_size_inches((30, 20))
 
-#for idx, path in enumerate(paths[1:]):
-#    (t_estimator, estimator_p, estimator_pdot, estimator_att,
-#    t_contact, contacts,
-#    t_motorForces, motorForces)  = rosbag2data(path)
-#
-#    t_estimator = t_estimator-t_estimator[0]
-#    
-#    if idx == 3:
-#        add_pos_line(fig.axes[0], t_estimator, estimator_p[:,1], alpha=1.0)
-#        add_vel_line(fig.axes[1], t_estimator, estimator_pdot[:,1], alpha=1.0)
-#    else: 
-#        add_pos_line(fig.axes[0], t_estimator, estimator_p[:,1], alpha=0.5)
-#        add_vel_line(fig.axes[1], t_estimator, estimator_pdot[:,1], alpha=0.5)
-    
-# Find first contact index
-cIdx = -1 #np.argmin(np.any(contacts, axis=0))
-for i in range(contacts.shape[0]):
-    if contacts[i, :].any():
-        cIdx = i
-        break
-
-# Find the corresponding index in mocap data
-tIdx = np.argmin((t_estimator - t_contact[cIdx])**2) 
-print(t_contact[cIdx])
-print(tIdx)
-
-tIdx = 220
-
-orig_traj = lambda t: np.array([0.75 * np.sin(2*np.pi * t),
-                                            2.0* np.cos(2*np.pi * t),
-                                            1.75 * np.ones_like(t)])
-
-
-#fig.savefig("collisionRecovery.png", dpi=300, bbox_inches="tight", transparent=True)
-
-fig = plot_topview(t_estimator[::5], estimator_p[::5, :].T, [tIdx, tIdx + 30, -1],
-                   np.array([-0.7, -0.25, 1.75]), np.array([0.6, 0.6, 0.6]), Rotation.identity(),
-                   orig_traj=orig_traj)
-fig.savefig("topViewReal.png", dpi=300, bbox_inches="tight", transparent=True)
+ani = anim_pos_vel_plot(t_estimator[::5], 1,
+                        estimator_p[::5,:].T, estimator_pdot[::5,:].T,
+               np.array([0.0, 3.4, 1.75]), np.array([0.6, 0.6, 0.6]),Rotation.identity())
+ani.save(filename="pos_vel_anim.mp4", writer="ffmpeg", dpi=150)

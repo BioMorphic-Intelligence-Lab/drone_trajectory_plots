@@ -2,8 +2,7 @@ import numpy as np
 import matplotlib.pyplot  as plt
 import matplotlib
 from matplotlib.gridspec import GridSpec
-from matplotlib.patches import Rectangle
-from scipy.spatial.transform import Rotation
+from matplotlib.patches import Ellipse, FancyBboxPatch, Rectangle
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 from matplotlib.animation import FuncAnimation
@@ -15,7 +14,9 @@ delft_blue_ddarker = "#002FDC"
 color_x = "#F80031"
 color_y = "#FFC700"
 color_z = "#FF8100"
-color_contact="#C06100"
+bright_grey = "#a1a095ff"
+dark_grey = "#2e2e2e"
+color_contact="red"
 linestyle0 = "-"
 linestyle1 = "--"
 linestyle2 = ":"
@@ -36,29 +37,42 @@ def plot_success_rates(velocities, rates, sigma, N=3):
 
 
     legend= ["Collision Agnostic", "Accelerometer Based", "Ours"]
-    bar_width = 0.5 / (N + 2)
+    bar_width = 0.6 / (N + 2)
 
     fig = plt.figure(figsize=(45, 30))
+    fig.set_facecolor(bright_grey)
     ax = fig.add_subplot()
 
     ax.set_xlabel(r"Collision Velocity [m / s]", labelpad=35)
     ax.set_ylabel("Collision Recovery Success Rate [\%]", labelpad=35)
     ax.set_xticks(velocities)
-    ax.set_yticks(np.arange(0, 110, 25))
+    ax.set_yticks(np.arange(0, 110, 50))
     ax.tick_params(axis='both', which='major', width=5, length=30,pad=35)
     #ax.set_xlim((velocities[0], velocities[-1]))
     ax.set_ylim((-5, 102))
+    ax.set_facecolor(bright_grey)
+    radius = 1.0
 
     for i in range(rates.shape[0]):
-        xloc = velocities + (-bar_width + i * bar_width)
-        ax.bar(xloc, rates[i, :] + 5.0,
+        xloc = velocities + (-(bar_width + 0.025) + i * (bar_width + 0.025))
+        ax.bar(xloc, rates[i, :] + 5.0 - radius,
                color=colors[i], width=bar_width, label=legend[i],
                bottom=-5)
+        for j in range(rates.shape[1]):
+            ellipse = Ellipse((xloc[j], rates[i, j] - radius),
+                              bar_width, 2 * radius, facecolor=colors[i], 
+                              linewidth=None)
+            ax.add_patch(ellipse)
+
+    ax.legend(loc="upper right")
+    fig.savefig('success_rate.png', bbox_inches="tight", dpi=300, transparent=False)
         #ax.errorbar(xloc, rates[i, :], sigma[i], fmt='.', color='Black',
         #            elinewidth=5,capthick=5,errorevery=1, alpha=0.9, 
         #            ms=4, capsize =10)
-    ax.legend()
-    fig.savefig('success_rate.png', bbox_inches="tight", dpi=300, transparent=True)
+
+
+    # Customize each bar to have rounded corners
+
     
 def plot_rectoid(ax, center, sidelength, rot, **kwargs):
 
@@ -160,7 +174,9 @@ def init_topview(t, p,
         pos_range_x = (min(p[:, 0, :].flatten()) - 0.25, max(p[:, 0, :].flatten()) + 0.25)
         pos_range_y = (min(p[:, 1, :].flatten()) - 0.25, max(p[:, 1, :].flatten()) + 0.25)
 
-    fig = plt.figure(constrained_layout=True)
+    fig = plt.figure(constrained_layout=True,
+                     facecolor=dark_grey)
+    fig.set_size_inches((15,55))
     
     ax = fig.add_subplot()
     ax.set_aspect("equal")
@@ -168,14 +184,25 @@ def init_topview(t, p,
     ax.set_ylim(pos_range_y)
     ax.set_xlabel(r"x [m]")
     ax.set_ylabel(r"y [m]")
+    ax.set_facecolor(dark_grey)
+    ax.tick_params(axis='both', which='major', width=5, length=30,pad=35)
 
-    ax.add_patch(Rectangle(rec_pos[0:2] - 0.5*rec_sl[0:2], width=rec_sl[0], height=rec_sl[1],
+    ax.add_patch(Rectangle(rec_pos[0:2] - 0.5*rec_sl[0:2],
+                           width=rec_sl[0], height=rec_sl[1],
                            angle=rec_rot.as_euler(seq="xyz")[2],
-                           facecolor='xkcd:grey', edgecolor="black", alpha=0.5))
+                           facecolor='xkcd:grey', linewidth=10,
+                           edgecolor="black", alpha=0.5))
+    
+    # change all spines
+    for axis in ['top','bottom','left','right']:
+        ax.spines[axis].set_linewidth(10)
+
+    # increase tick width
+    ax.tick_params(width=10)
     
     if orig_traj is not None:
         vals = orig_traj(np.linspace(0, 1, 100))
-        ax.plot(vals[0, :], vals[1, :], color="black", linestyle=linestyle1)
+        ax.plot(vals[0, :], vals[1, :], color="black", linestyle=linestyle1, linewidth=10)
     
     pre_collision_GTs = []
     recoveries = []
@@ -183,9 +210,9 @@ def init_topview(t, p,
 
     for _ in range(n):
         
-        pre_collision_GT, = ax.plot([], [], label=r"pre-collision", color=delft_blue_ddarker, linestyle=linestyle0)
-        recovery, = ax.plot([], [], label=r"recover", color=delft_blue_darker, linestyle=linestyle0)
-        post_collision_GT, = ax.plot([], [], label=r"post-collison", color=delft_blue, linestyle=linestyle0)
+        pre_collision_GT, = ax.plot([], [], label=r"pre-collision", color=delft_blue_ddarker, linestyle=linestyle0, linewidth=10)
+        recovery, = ax.plot([], [], label=r"recover", color=delft_blue_darker, linestyle=linestyle0, linewidth=10)
+        post_collision_GT, = ax.plot([], [], label=r"post-collison", color=delft_blue, linestyle=linestyle0, linewidth=10)
         
         pre_collision_GTs += [pre_collision_GT]
         recoveries += [recovery]
@@ -198,7 +225,8 @@ def init_topview(t, p,
 def plot_topview(t, p, idx,
                  rec_pos, rec_sl, rec_rot,
                  orig_traj=None):
-    (fig, pre_collision_GTs, recoveries, post_collision_GTs) = init_topview(t, p,
+    (fig, pre_collision_GTs,
+     recoveries, post_collision_GTs) = init_topview(t, p,
                                  rec_pos, rec_sl, rec_rot,
                                  orig_traj)
     
@@ -215,7 +243,39 @@ def plot_topview(t, p, idx,
         post_collision_GTs[i].set_data(p[i, 0, idx[1]-1:idx[2]], p[i, 1, idx[1]-1:idx[2]])
 
     return fig
+
+def anim_topview(t, p, idx,
+                 rec_pos, rec_sl, rec_rot,
+                 orig_traj=None):
+    (fig, pre_collision_GTs,
+     recoveries, post_collision_GTs) = init_topview(t, p,
+                                 rec_pos, rec_sl, rec_rot,
+                                 orig_traj)
+    fig.set_size_inches((35, 25))
     
+    n = getNumTrials(t)
+
+    if n == 1:
+        t = t.reshape([1, len(t)])
+        p = p.reshape([1, p.shape[0], p.shape[1]])
+   
+    # Update function for animation
+    def update(frame):
+        for i in range(n): 
+            if frame < idx[0]:
+                pre_collision_GTs[i].set_data(p[i, 0, 0:frame], p[i, 1, 0:frame])
+            elif frame < idx[1]:
+                pre_collision_GTs[i].set_data(p[i, 0, 0:idx[0]], p[i, 1, 0:idx[0]])
+                recoveries[i].set_data(p[i, 0, idx[0]-1:frame], p[i, 1, idx[0]-1:frame])
+            elif frame > idx[1]:
+                pre_collision_GTs[i].set_data(p[i, 0, 0:idx[0]], p[i, 1, 0:idx[0]])
+                recoveries[i].set_data(p[i, 0, idx[0]-1:idx[1]], p[i, 1, idx[0]-1:idx[1]])
+                post_collision_GTs[i].set_data(p[i, 0, idx[1]-1:frame], p[i, 1, idx[1]-1:frame])
+            
+        return (*pre_collision_GTs, *recoveries, *post_collision_GTs)
+
+    # Run Animation
+    return FuncAnimation(fig, update, frames=t.shape[1], interval=(max(t[:, -1]) - min(t[:, 0])) / t.shape[1] * 1e3, blit=True)
 
 def init_pos_vel_plot(t, axis,
                 p, p_dot,
@@ -228,7 +288,9 @@ def init_pos_vel_plot(t, axis,
     time_range = (t[0], t[-1])
     
     # Set up a figure with aspect ration 3:2
-    fig = plt.figure(constrained_layout=True, figsize=7.5 * np.array([4, 2]))
+    fig = plt.figure(constrained_layout=True,
+                     facecolor=dark_grey)
+    fig.set_size_inches((35, 25))
     gs = GridSpec(2, 1, figure=fig)
 
     # Position Plot
@@ -238,6 +300,9 @@ def init_pos_vel_plot(t, axis,
     axPos.tick_params(labelbottom=False)
     axPos.plot(t, np.ones_like(t) * (rec_pos[axis] - 0.5*rec_sl[axis]), linewidth=10, color= "black", linestyle=linestyle2)
     axPos.set_ylabel(r"Position [m]", labelpad=25)
+    axPos.set_facecolor(dark_grey)
+
+    axPos.tick_params(axis='both', which='major', width=5, length=30,pad=35)
 
     # Velocity Plot
     axVel = fig.add_subplot(gs[1, 0], sharex=axPos)
@@ -246,14 +311,25 @@ def init_pos_vel_plot(t, axis,
     axVel.set_ylabel(r"Velocity [m / s]", labelpad=25)
     axVel.set_xlabel(r"t [s]", labelpad=15)
     axVel.set_xlim(time_range)
+    axVel.set_facecolor(dark_grey)
+    axVel.tick_params(axis='both', which='major', width=5, length=30,pad=35)
 
+
+    # change all spines
+    for axis in ['top','bottom','left','right']:
+        axPos.spines[axis].set_linewidth(10)
+        axVel.spines[axis].set_linewidth(10)
+
+    # increase tick width
+    axPos.tick_params(width=10)
+    axVel.tick_params(width=10)
     
     linesPos = []
     linesVel = []
-    for i in range(n):
+    for _ in range(n):
         
-        linePos, = axPos.plot([], [], label=r"Position", linewidth = 10, color=delft_blue, linestyle=linestyle0, alpha=0.5)
-        lineVel, = axVel.plot([], [], label=r"Velocity", linewidth = 10, color=delft_blue, linestyle=linestyle1, alpha=0.5)
+        linePos, = axPos.plot([], [], label=r"Position", linewidth = 10, color=delft_blue, linestyle=linestyle0, alpha=1)
+        lineVel, = axVel.plot([], [], label=r"Velocity", linewidth = 10, color=delft_blue, linestyle=linestyle1, alpha=1)
        
         linesPos += [linePos]
         linesVel += [lineVel]
@@ -281,6 +357,33 @@ def plot_pos_vel(t, axis,
         linesPos[i].set_data(t[i, :], p[i, axis, :])
         linesVel[i].set_data(t[i, :], p_dot[i, axis, :])
     return fig
+
+def anim_pos_vel_plot(t, axis,
+                p, p_dot,
+                rec_pos, rec_sl, rec_rot):
+    
+    (fig, linesPos, linesVel) = init_pos_vel_plot(t, axis,
+                                            p, p_dot,
+                                            rec_pos, rec_sl, rec_rot)
+    
+    n = getNumTrials(t)
+
+    if n == 1:
+        t = t.reshape([1, len(t)])
+        p = p.reshape([1, p.shape[0], p.shape[1]])
+        p_dot = p_dot.reshape([1, p_dot.shape[0], p_dot.shape[1]])
+    
+    # Update function for animation
+    def update(frame):
+        for i in range(n): 
+            linesPos[i].set_data(t[i, :frame], p[i, axis, :frame])
+            linesVel[i].set_data(t[i, :frame], p_dot[i, axis, :frame])
+            
+        return (*linesPos, *linesVel)
+
+    # Run Animation
+    return FuncAnimation(fig, update, frames=t.shape[1], interval=(max(t[:, -1]) - min(t[:, 0])) / t.shape[1] * 1e3, blit=True)
+
 
 def add_pos_line(ax, t, y, alpha):
     ax.plot(t, y, alpha=alpha, color=delft_blue, linewidth=10, linestyle = linestyle0)
@@ -774,6 +877,7 @@ def init_anim(t,
               r, omega,
               contacts,
               rec_pos, rec_sl, rec_rot,
+              orig_traj=None,
               des_pos=None):
     
     n = getNumTrials(t)
@@ -789,50 +893,81 @@ def init_anim(t,
         t_range = (min(t[:, 0]), max(t[:, -1]))
     
     # Set up a figure with aspect ration 3:2
-    fig = plt.figure(constrained_layout=True, figsize=7.5 * np.array([4, 2]))
-    fig.set_size_inches((45, 35))
+    fig = plt.figure(constrained_layout=True,
+                     facecolor=dark_grey)
+    fig.set_size_inches((85, 40))
+
     gs = GridSpec(12, 2, figure=fig)
 
     # 3D Plot
     ax3d = fig.add_subplot(gs[:, 0], projection='3d')
-    ax3d.set_xlabel(r"$x$ [m]")
-    ax3d.set_ylabel(r"$y$ [m]")
-    ax3d.set_zlabel(r"$z$ [m]")
+    ax3d.set_xlabel(r"$x$ [m]", labelpad=150)
+    ax3d.set_ylabel(r"$y$ [m]", labelpad=150)
+    ax3d.set_zlabel(r"$z$ [m]", labelpad=150)
     ax3d.set_xlim((-range_3d / 2, range_3d / 2))
-    ax3d.set_ylim((0.0, range_3d))
-    ax3d.set_zlim((0, range_3d))
+    ax3d.set_ylim((-range_3d / 2, range_3d / 2))
+    ax3d.set_zlim((-0.1 * range_3d, 0.9 * range_3d))
     plot_rectoid(ax3d, rec_pos, rec_sl, rec_rot,
                  facecolors='xkcd:grey', edgecolor="black", alpha=0.5)
     ax3d.view_init(elev=30, azim=65)
+    ax3d.tick_params(axis='both', which='major', width=5, length=30, pad=50)
+    ax3d.set_facecolor(dark_grey)
+
+    if orig_traj is not None:
+        vals = orig_traj(np.linspace(0, 1, 100))
+        ax3d.plot(vals[0, :], vals[1, :], vals[2, :], color="black", linestyle=linestyle1, linewidth=10, zorder=100)
 
     # Position Plot
     axPos = fig.add_subplot(gs[0:3, 1])
     axPos.set_xlabel("")
     axPos.set_ylim(pos_range)
     axPos.tick_params(labelbottom=False)
-    axPos.set_ylabel(r"Position [m]")
+    axPos.set_ylabel(r"Position [m]", labelpad=50)
+    axPos.set_facecolor(dark_grey)
+    axPos.tick_params(axis='both', which='major', width=5, length=30, pad=50)
 
     # Velocity Plot
     axVel = fig.add_subplot(gs[3:6, 1], sharex=axPos)
     axVel.set_ylim(vel_range)
-    axVel.set_ylabel(r"Velocity [m / s]")
+    axVel.set_ylabel(r"Velocity [m / s]", labelpad=50)
     axVel.tick_params(labelbottom=False)
+    axVel.set_facecolor(dark_grey)
+    axVel.tick_params(axis='both', which='major', width=5, length=30, pad=50)
 
     # Attitude Plot
     axAtt = fig.add_subplot(gs[6:9, 1], sharex=axPos)
     axAtt.set_ylim(att_range)
-    axAtt.set_ylabel(r"Attitude [$^\circ$]")
+    axAtt.set_yticks([-180, 0, 180])
+    axAtt.set_yticklabels([r"$-\pi$", r"$0$", r"$\pi$"])
+    axAtt.set_ylabel(r"Attitude [$^\circ$]", labelpad=50)
     axAtt.tick_params(labelbottom=False)
-
+    axAtt.set_facecolor(dark_grey)
+    axAtt.tick_params(axis='both', which='major', width=5, length=30, pad=50)
 
     # Contact Plot
     axContact = fig.add_subplot(gs[9:12, 1], sharex=axPos)
     axContact.set_xlim(t_range)
-    axContact.set_xlabel(r"Time [s]")
+    axContact.set_xlabel(r"Time [s]", labelpad=50)
+    axContact.set_ylabel("Contact", labelpad=50)
     axContact.set_yticks([i for i in range(14)])
     axContact.set_yticklabels([rf"$v_{{{i}}}$" for i in range(14)])
     axContact.set_ylim((0.5, 12.5))
     axContact.grid(axis='y')
+    axContact.set_facecolor(dark_grey)
+    axContact.tick_params(axis='both', which='major', width=5, length=30, pad=50)
+
+    # change all spines
+    for axis in ['top','bottom','left','right']:
+        axPos.spines[axis].set_linewidth(10)
+        axVel.spines[axis].set_linewidth(10)
+        axAtt.spines[axis].set_linewidth(10)
+        axContact.spines[axis].set_linewidth(10)
+
+    # increase tick width
+    axPos.tick_params(width=10)
+    axVel.tick_params(width=10)
+    axAtt.tick_params(width=10)
+    axContact.tick_params(width=10)
 
     lines3d = []
     atts3d = []
@@ -851,7 +986,7 @@ def init_anim(t,
     linesContacts = []
 
     for i in range(n):
-        line3d, = ax3d.plot([], [], [], color=delft_blue)
+        line3d, = ax3d.plot([], [], [], color=delft_blue, linewidth=10)
         if t.ndim == 1:
             att3d = ax3d.quiver(p[0, 0], p[1, 0], p[2, 0], 1, 0, 0,
                             length=0.3, color="black")
@@ -874,7 +1009,7 @@ def init_anim(t,
         for i in range(12):
             line,  = axContact.plot([], [],
                                     linestyle="", marker="o", color=color_contact,
-                                    markersize=4)
+                                    markersize=40)
             contactLines += [line]
         
         lines3d += [line3d]
@@ -894,13 +1029,26 @@ def init_anim(t,
         linesContacts += [contactLines]
 
     if n == 1:
-        axPos.legend(loc='upper left')
-        axVel.legend(loc='upper left')
-        axAtt.legend(loc='upper left')
+        axPos.legend(loc='lower left', ncol=3)
+        for legobj in axPos.get_legend().legendHandles:
+            legobj.set_linewidth(10.0)
+
+        axVel.legend(loc='lower left', ncol=3)
+        for legobj in axVel.get_legend().legendHandles:
+            legobj.set_linewidth(10.0)
+        axAtt.legend(loc='lower left', ncol=3)
+        for legobj in axAtt.get_legend().legendHandles:
+            legobj.set_linewidth(10.0)
     else:
-        axPos.legend(labels=[r"$x$", r"$y$", r"$z$"], loc='upper left')
-        axVel.legend(labels=[r"$\dot{x}$", r"$\dot{y}$", r"$\dot{z}$"], loc='upper left')
-        axAtt.legend(labels=[r"$\varphi$", r"$\theta$", r"$\psi$"], loc='upper left')
+        axPos.legend(labels=[r"$x$", r"$y$", r"$z$"], loc='lower left', ncol=3)
+        for legobj in axPos.get_legend().legendHandles:
+            legobj.set_linewidth(10.0)
+        axVel.legend(labels=[r"$\dot{x}$", r"$\dot{y}$", r"$\dot{z}$"], loc='lower left', ncol=3)
+        for legobj in axVel.get_legend().legendHandles:
+            legobj.set_linewidth(10.0)
+        axAtt.legend(labels=[r"$\varphi$", r"$\theta$", r"$\psi$"], loc='lower left', ncol=3)
+        for legobj in axAtt.get_legend().legendHandles:
+            legobj.set_linewidth(10.0)
 
     return (fig, ax3d, lines3d, atts3d,
             linesPosX, linesPosY, linesPosZ,
@@ -912,6 +1060,7 @@ def init_anim(t,
 def animate_trajectory(t, p, p_dot, 
                        r, omega, contacts,
                        rec_pos, rec_sl, rec_rot,
+                       orig_traj=None,
                        des_pos=None):
     
     (fig, ax3d, lines3d, atts3d,
@@ -921,7 +1070,8 @@ def animate_trajectory(t, p, p_dot,
     linesAttX, linesAttY, linesAttZ,
     linesContacts) = init_anim(
         t, p, p_dot, r, omega, contacts,
-        rec_pos, rec_sl, rec_rot)
+        rec_pos, rec_sl, rec_rot,
+        orig_traj=orig_traj)
     
     n = getNumTrials(t)
 

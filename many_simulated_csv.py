@@ -11,7 +11,7 @@ from tqdm import tqdm
 def main(argv):
     if len(argv) > 1:
         if argv[1] == "replan":
-            paths = [f"data/ellipse/Simulation{i:03d}.csv" for i in range(10)]
+            paths = [f"data/ellipse/Simulation{i:03d}.csv" for i in range(100)]
             cubeP = np.array([-1, 0.3, 1.75])
             cubeDp = np.array([0.6, 0.6, 0.6])
             cubeR = Rotation.identity()
@@ -25,6 +25,15 @@ def main(argv):
             cubeDp = np.array([4.0, 4, 4.0])
             cubeR = Rotation.identity()
             orig_traj = None
+    else:
+        paths =  [f"data/ellipse/Simulation{i:03d}.csv" for i in range(10)]
+        cubeP = np.array([-1, 0.3, 1.75])
+        cubeDp = np.array([0.6, 0.6, 0.6])
+        cubeR = Rotation.identity()
+
+        orig_traj = lambda t: np.array([0.75 * np.sin(2*np.pi * t),
+                                        2.25 * np.cos(2*np.pi * t),
+                                        1.75 * np.ones_like(t)])
 
     t = []
     p_gt = []
@@ -92,10 +101,10 @@ def main(argv):
     contacts = np.array(contacts)
 
 
-    fig = plot_trajectory(t, p_gt, v_gt, r_gt, omega_gt, contacts,
-                   cubeP, cubeDp, cubeR,
-                   None,
-                   orig_traj)
+    #fig = plot_trajectory(t, p_gt, v_gt, r_gt, omega_gt, contacts,
+    #               cubeP, cubeDp, cubeR,
+    #               None,
+    #               orig_traj)
     
     #fig = plot_3d(t, p_gt, r_gt,
     #              cubeP,cubeDp, cubeR,
@@ -106,7 +115,7 @@ def main(argv):
     #                    des_pos=None,
     #                    orig_traj=orig_traj
     #                    )
-    plt.show()
+    #
     #fig.set_size_inches((45, 30))
     #fig.savefig("plot.png", dpi=300, bbox_inches="tight", transparent=True)
 
@@ -115,22 +124,23 @@ def main(argv):
     #ani.save(filename="3d_anim.mp4", writer="ffmpeg", dpi=250)
 
 
-"""step_size = 4
-j = 0
-ani = animate_trajectory(t, p_gt, v_gt, r_gt, omega_gt, contacts,
-                np.array([-1, 0.3, 1.75]), np.array([0.6, 0.6, 0.6]), Rotation.identity(),
-                None)
-# Manually iterate through each frame
-for i, frame_data in enumerate(tqdm(ani.new_frame_seq(), total=t.shape[1])):
-    if i % step_size == 0:
-        # Call the update function for the current frame
-        ani._draw_next_frame(frame_data, blit=False)
-        
-        # Save the current frame as a PNG file
-        filename = f'frames/frame_{j:05d}.png'
-        j = j+1
-        plt.savefig(filename)"""
-
+    step_size = 4
+    j = 0
+    ani = animate_trajectory(t, p_gt, v_gt, r_gt, omega_gt, contacts,
+                    cubeP, cubeDp, cubeR,
+                    orig_traj,
+                    None)
+    
+    # Manually iterate through each frame
+    for i, frame_data in enumerate(tqdm(ani.new_frame_seq(), total=t.shape[1])):
+        if i % step_size == 0:
+            # Call the update function for the current frame
+            ani._draw_next_frame(frame_data, blit=False)
+            
+            # Save the current frame as a PNG file
+            filename = f'frames/frame_{j:05d}.png'
+            j = j+1
+            plt.savefig(filename)
 
 if __name__=="__main__":
     main(sys.argv)
