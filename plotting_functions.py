@@ -11,8 +11,8 @@ from matplotlib.animation import FuncAnimation
 delft_blue = "#00A6D6"
 delft_blue_darker = "#258EFC"
 delft_blue_ddarker = "#002FDC"
-color_x = "#F80031"
-color_y = "#FFC700"
+color_x = "#008E2B"
+color_y = "#001A83"
 color_z = "#FF8100"
 bright_grey = "#a1a095ff"
 dark_grey = "#2e2e2e"
@@ -35,37 +35,36 @@ def plot_success_rates(velocities, rates, sigma, N=3):
     assert(len(velocities) == rates.shape[1])
     assert(rates.shape == sigma.shape)
 
-
     legend= ["Collision Agnostic", "Accelerometer Based", "Ours"]
     bar_width = 0.6 / (N + 2)
 
     fig = plt.figure(figsize=(45, 30))
-    fig.set_facecolor(bright_grey)
+    #fig.set_facecolor(bright_grey)
     ax = fig.add_subplot()
 
-    ax.set_xlabel(r"Collision Velocity [m / s]", labelpad=35)
-    ax.set_ylabel("Collision Recovery Success Rate [\%]", labelpad=35)
+    ax.set_xlabel(r"Collision Velocity [$m / s$]", labelpad=35)
+    ax.set_ylabel("Cumulative Recovery Success Rate [\\%]", labelpad=35)
     ax.set_xticks(velocities)
     ax.set_yticks(np.arange(0, 110, 50))
     ax.tick_params(axis='both', which='major', width=5, length=30,pad=35)
     #ax.set_xlim((velocities[0], velocities[-1]))
     ax.set_ylim((-5, 102))
-    ax.set_facecolor(bright_grey)
+    #ax.set_facecolor(bright_grey)
     radius = 1.0
 
     for i in range(rates.shape[0]):
         xloc = velocities + (-(bar_width + 0.025) + i * (bar_width + 0.025))
         ax.bar(xloc, rates[i, :] + 5.0 - radius,
                color=colors[i], width=bar_width, label=legend[i],
-               bottom=-5)
+               bottom=-5, alpha=0.75)
         for j in range(rates.shape[1]):
             ellipse = Ellipse((xloc[j], rates[i, j] - radius),
                               bar_width, 2 * radius, facecolor=colors[i], 
-                              linewidth=None)
+                              linewidth=None, alpha=0.75)
             ax.add_patch(ellipse)
 
     ax.legend(loc="upper right")
-    fig.savefig('success_rate.png', bbox_inches="tight", dpi=300, transparent=False)
+    fig.savefig('success_rate.png', bbox_inches="tight", dpi=300, transparent=True)
         #ax.errorbar(xloc, rates[i, :], sigma[i], fmt='.', color='Black',
         #            elinewidth=5,capthick=5,errorevery=1, alpha=0.9, 
         #            ms=4, capsize =10)
@@ -74,6 +73,44 @@ def plot_success_rates(velocities, rates, sigma, N=3):
     # Customize each bar to have rounded corners
 
     
+def plot_time_to_recovery(velocities, times, sigma, N=3):
+    
+    assert(len(velocities) == times.shape[1])
+    assert(times.shape == sigma.shape)
+
+    legend= ["Collision Agnostic", "Accelerometer Based", "Ours"]
+    bar_width = 0.6 / (N + 2)
+
+    fig = plt.figure(figsize=(45, 30))
+    #fig.set_facecolor(bright_grey)
+    ax = fig.add_subplot()
+
+    ax.set_xlabel(r"Collision Velocity [$m / s$]", labelpad=35)
+    ax.set_ylabel("Time to Recovery [s]", labelpad=35)
+    ax.set_xticks(velocities)
+    ax.tick_params(axis='both', which='major', width=5, length=30,pad=35)
+    #ax.set_xlim((velocities[0], velocities[-1]))
+    #ax.set_facecolor(bright_grey)
+    radius = 1.0
+
+    for i in range(times.shape[0]):
+        xloc = velocities + (-(bar_width + 0.025) + i * (bar_width + 0.025))
+        ax.bar(xloc, times[i, :],
+               color=colors[i], width=bar_width, label=legend[i], alpha=0.75)
+        #for j in range(times.shape[1]):
+        #    ellipse = Ellipse((xloc[j], times[i, j] - radius),
+        #                      bar_width, 2 * radius, facecolor=colors[i], 
+        #                      linewidth=None, alpha=0.75)
+        #    ax.add_patch(ellipse)
+
+        ax.errorbar(xloc, times[i, :], sigma[i], fmt='.', color='Black',
+                    elinewidth=5,capthick=5,errorevery=1, alpha=0.9, 
+                    ms=4, capsize =10)
+
+
+    ax.legend(loc="upper right")
+    fig.savefig('time_to_recovery.png', bbox_inches="tight", dpi=100, transparent=False)
+
 def plot_rectoid(ax, center, sidelength, rot, **kwargs):
 
     step_front_bottom_left = 0.5 * np.array([-sidelength[0],
@@ -146,6 +183,68 @@ def plot_rectoid(ax, center, sidelength, rot, **kwargs):
     faces[5][3,:]  = (np.array(center + rot.apply(step_back_bottom_right)))
     
     
+    ax.add_collection3d(Poly3DCollection(faces, **kwargs))
+
+def plot_cylinder(ax, center, radius, height, rot, n_segments=20, **kwargs):
+    """
+    Plot a 3D cylinder with top and bottom faces.
+    
+    Parameters:
+    ax: matplotlib 3D axis
+    center: array-like, center point of the cylinder [x, y, z]
+    radius: float, radius of the cylinder
+    height: float, height of the cylinder
+    rot: scipy.spatial.transform.Rotation object for orientation
+    n_segments: int, number of segments to approximate the cylinder (default: 20)
+    **kwargs: additional arguments passed to Poly3DCollection
+    """
+    
+    # Generate angles for circular cross-section
+    theta = np.linspace(0, 2*np.pi, n_segments + 1)
+    
+    # Create faces list
+    faces = []
+    
+    # Generate points for top and bottom circles
+    top_circle = np.zeros((n_segments + 1, 3))
+    bottom_circle = np.zeros((n_segments + 1, 3))
+    
+    for i, angle in enumerate(theta):
+        # Bottom circle points (local coordinates)
+        bottom_local = np.array([radius * np.cos(angle), 
+                                radius * np.sin(angle), 
+                                -height/2])
+        # Top circle points (local coordinates)
+        top_local = np.array([radius * np.cos(angle), 
+                             radius * np.sin(angle), 
+                             height/2])
+        
+        # Apply rotation and translation
+        bottom_circle[i] = center + rot.apply(bottom_local)
+        top_circle[i] = center + rot.apply(top_local)
+    
+    # Create side faces (rectangular panels between top and bottom)
+    for i in range(n_segments):
+        face = np.zeros((4, 3))
+        # Bottom edge of current segment
+        face[0] = bottom_circle[i]
+        face[1] = bottom_circle[i + 1]
+        # Top edge of current segment
+        face[2] = top_circle[i + 1]
+        face[3] = top_circle[i]
+        faces.append(face)
+    
+    # Create bottom face (circle)
+    if n_segments > 2:  # Need at least 3 points for a face
+        bottom_face = bottom_circle[:-1]  # Remove duplicate point
+        faces.append(bottom_face)
+    
+    # Create top face (circle) - reverse order for proper normal direction
+    if n_segments > 2:
+        top_face = top_circle[:-1][::-1]  # Remove duplicate and reverse
+        faces.append(top_face)
+    
+    # Add collection to axes
     ax.add_collection3d(Poly3DCollection(faces, **kwargs))
 
 def getNumTrials(t):
@@ -536,6 +635,7 @@ def plot_timeplot(t,
 
 def init_3dplot(t, p,
                 rec_pos, rec_sl, rec_rot,
+                cyl_pos, cyl_dim, cyl_rot,
                 orig_traj=None):
     n = getNumTrials(t)
     
@@ -550,19 +650,29 @@ def init_3dplot(t, p,
     # 3D Plot
     ax3d = fig.add_subplot(gs[:, :], projection='3d')
     ax3d.tick_params(axis='both', which='major', pad=25) 
-    ax3d.set_xlabel(r"$x$ [m]", labelpad=65)
-    ax3d.set_ylabel(r"$y$ [m]", labelpad=65)
-    ax3d.set_zlabel(r"$z$ [m]", labelpad=65)
+    ax3d.set_xlabel(r"$x$ [m]", labelpad=95)
+    ax3d.set_ylabel(r"$y$ [m]", labelpad=95)
+    ax3d.set_zlabel(r"$z$ [m]", labelpad=95)
     ax3d.set_xlim((-2, 2)) #(-range_3d , range_3d))
     ax3d.set_ylim((-2, 2)) #(-range_3d, range_3d))
     ax3d.set_zlim((-1, 3)) #(-0.5 * range_3d , 1.5 * range_3d))
-    plot_rectoid(ax3d, rec_pos, rec_sl, rec_rot,
-                 facecolors='xkcd:grey', edgecolor="black", alpha=0.5)
+    
+    # Plot Rectoids
+    for i in range(len(rec_pos)):
+        plot_rectoid(ax3d, rec_pos[i], rec_sl[i], rec_rot[i],
+                    facecolors='xkcd:grey', edgecolor="black", alpha=0.5)
+        
+    # Plot Cylinders
+    for i in range(len(cyl_pos)):
+        plot_cylinder(ax3d, cyl_pos[i], cyl_dim[i][0], cyl_dim[i][1],
+                      cyl_rot[i],
+                      facecolors='xkcd:grey', edgecolor="black", alpha=0.5)
     
 
     if orig_traj is not None:
         vals = orig_traj(np.linspace(0, 1, 100))
-        ax3d.plot(vals[0, :], vals[1, :], vals[2, :], color="black", linestyle=linestyle1)
+        ax3d.plot(vals[0, :], vals[1, :], vals[2, :],
+                  color="black", linestyle=linestyle1, linewidth=5.0)
         
     ax3d.view_init(azim=-110, elev=30)
 
@@ -572,7 +682,7 @@ def init_3dplot(t, p,
     atts3d = []
     for i in range(n):
         line3d, = ax3d.plot([], [], [],
-                            linestyle=linestyle1, linewidth=0.1, color=delft_blue)
+                            linestyle=linestyle1, linewidth=1.5, color=delft_blue)
         if t.ndim == 1:
             att3d = ax3d.quiver(p[0, 0], p[1, 0], p[2, 0], 1, 0, 0,
                             length=0.3, color="black")
@@ -586,11 +696,13 @@ def init_3dplot(t, p,
     return (fig, ax3d, lines3d, atts3d)
 
 def plot_3d(t, p, r,
-            rec_pos, rec_sl, rec_rot,
+            rec_pos=[], rec_sl=[], rec_rot=[],
+            cyl_pos=[], cyl_dim=[], cyl_rot=[],
             orig_traj=None):
     (fig, ax3d, lines3d, atts3d) = init_3dplot(t, p,
-                                                rec_pos, rec_sl, rec_rot,
-                                                orig_traj=orig_traj)
+                                               rec_pos, rec_sl, rec_rot,
+                                               cyl_pos, cyl_dim, cyl_rot,
+                                               orig_traj=orig_traj)
     
     n = getNumTrials(t)
 
@@ -608,6 +720,12 @@ def plot_3d(t, p, r,
 
         atts3d[i].remove()    
 
+    ax3d.set_xticks([-1, 0, 1])
+    ax3d.set_yticks([-1, 0, 1])
+    ax3d.set_zticks([0, 1, 2])
+    ax3d.set_xlim([-1.1, 1.1])
+    ax3d.set_ylim([-1.1, 1.1])
+    ax3d.set_zlim([0.3, 2.5])
     # Run Animation
     return fig
 
@@ -680,8 +798,9 @@ def init_plot(t,
     ax3d.set_xlim((-range_3d, range_3d))
     ax3d.set_ylim((-range_3d, range_3d))
     ax3d.set_zlim((-0.5 * range_3d, 1.5 * range_3d))
-    plot_rectoid(ax3d, rec_pos, rec_sl, rec_rot,
-                 facecolors='xkcd:grey', edgecolor="black", alpha=0.5)
+    for i in range(len(rec_pos)):
+        plot_rectoid(ax3d, rec_pos[i], rec_sl[i], rec_rot[i],
+                     facecolors='xkcd:grey', edgecolor="black", alpha=0.5)
     if orig_traj is not None:
         vals = orig_traj(np.linspace(0, 1, 100))
         ax3d.plot(vals[0, :], vals[1, :], vals[2, :], color="black", linestyle=linestyle1)
@@ -1030,24 +1149,24 @@ def init_anim(t,
 
     if n == 1:
         axPos.legend(loc='lower left', ncol=3)
-        for legobj in axPos.get_legend().legendHandles:
+        for legobj in axPos.get_legend().legend_handles:
             legobj.set_linewidth(10.0)
 
         axVel.legend(loc='lower left', ncol=3)
-        for legobj in axVel.get_legend().legendHandles:
+        for legobj in axVel.get_legend().legend_handles:
             legobj.set_linewidth(10.0)
         axAtt.legend(loc='lower left', ncol=3)
-        for legobj in axAtt.get_legend().legendHandles:
+        for legobj in axAtt.get_legend().legend_handles:
             legobj.set_linewidth(10.0)
     else:
         axPos.legend(labels=[r"$x$", r"$y$", r"$z$"], loc='lower left', ncol=3)
-        for legobj in axPos.get_legend().legendHandles:
+        for legobj in axPos.get_legend().legend_handles:
             legobj.set_linewidth(10.0)
         axVel.legend(labels=[r"$\dot{x}$", r"$\dot{y}$", r"$\dot{z}$"], loc='lower left', ncol=3)
-        for legobj in axVel.get_legend().legendHandles:
+        for legobj in axVel.get_legend().legend_handles:
             legobj.set_linewidth(10.0)
         axAtt.legend(labels=[r"$\varphi$", r"$\theta$", r"$\psi$"], loc='lower left', ncol=3)
-        for legobj in axAtt.get_legend().legendHandles:
+        for legobj in axAtt.get_legend().legend_handles:
             legobj.set_linewidth(10.0)
 
     return (fig, ax3d, lines3d, atts3d,

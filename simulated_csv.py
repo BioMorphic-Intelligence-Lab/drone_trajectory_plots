@@ -26,10 +26,10 @@ radioCmd = data_raw[:, 33:37].T
 contacts = data_raw[:, 37:49].T
 
 fig = plot_trajectory(t, p_gt, v_gt, r_gt, omega_gt, contacts,
-                np.array([-1, 0.3, 1.75]), np.array([0.6, 0.6, 0.6]), Rotation.identity(),
+                np.array([[-1, 0.3, 1.75]]), np.array([[0.6, 0.6, 0.6]]), [Rotation.identity()],
                 p_des)
-plt.show()
-#fig.savefig("plot.png")
+#plt.show()
+fig.savefig("plot.png")
 
 #ani = animate_trajectory(t, p_gt, v_gt, r_gt, omega_gt, contacts,
 #                np.array([0, 3.625, 2]), np.array([0.25, 0.25, 0.25]), Rotation.identity(),

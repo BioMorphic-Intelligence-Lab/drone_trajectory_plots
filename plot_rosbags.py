@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 
 from plotting_functions import plot_topview, plot_pos_vel, add_pos_line, add_vel_line
 
-
 from pathlib import Path
 from rosbags.typesys import Stores, get_types_from_msg, get_typestore
 from rosbags.rosbag1 import Reader
@@ -25,13 +24,13 @@ def rosbag2data(path: str):
     add_types = {}
 
     for pathstr in [
-        '/home/anton/projects/colliding-drone/LabCode/GeneralCode/ROS/hiperlab_hardware/msg/PoseEulerStamped.msg',
-        '/home/anton/projects/colliding-drone/LabCode/GeneralCode/ROS/hiperlab_rostools/msg/estimator_output.msg',
-        '/home/anton/projects/colliding-drone/LabCode/GeneralCode/ROS/hiperlab_rostools/msg/estimator_output.msg',
-        '/home/anton/projects/colliding-drone/LabCode/GeneralCode/ROS/hiperlab_rostools/msg/mocap_output.msg',
-        '/home/anton/projects/colliding-drone/LabCode/GeneralCode/ROS/hiperlab_rostools/msg/radio_command.msg',
-        '/home/anton/projects/colliding-drone/LabCode/GeneralCode/ROS/hiperlab_rostools/msg/simulator_truth.msg',
-        '/home/anton/projects/colliding-drone/LabCode/GeneralCode/ROS/hiperlab_rostools/msg/telemetry.msg',
+        '/home/antbre/projects/colliding-drone/tensegrity_flightcontroller/GeneralCode/ROS/hiperlab_hardware/msg/PoseEulerStamped.msg',
+        '/home/antbre/projects/colliding-drone/tensegrity_flightcontroller/GeneralCode/ROS/hiperlab_rostools/msg/estimator_output.msg',
+        '/home/antbre/projects/colliding-drone/tensegrity_flightcontroller/GeneralCode/ROS/hiperlab_rostools/msg/estimator_output.msg',
+        '/home/antbre/projects/colliding-drone/tensegrity_flightcontroller/GeneralCode/ROS/hiperlab_rostools/msg/mocap_output.msg',
+        '/home/antbre/projects/colliding-drone/tensegrity_flightcontroller/GeneralCode/ROS/hiperlab_rostools/msg/radio_command.msg',
+        '/home/antbre/projects/colliding-drone/tensegrity_flightcontroller/GeneralCode/ROS/hiperlab_rostools/msg/simulator_truth.msg',
+        '/home/antbre/projects/colliding-drone/tensegrity_flightcontroller/GeneralCode/ROS/hiperlab_rostools/msg/telemetry.msg',
     ]:
         msgpath = Path(pathstr)
         msgdef = msgpath.read_text(encoding='utf-8')
@@ -100,12 +99,12 @@ def rosbag2data(path: str):
 
 
 paths = [
-    "/home/anton/projects/colliding-drone/rosbags/real_collisions/29-08-24/2024-08-29-21-46-03-replanMegaSuccess.bag"
-    #"/home/anton/projects/colliding-drone/rosbags/real_collisions/29-08-24/2024-08-29-22-13-37-2msCollisionSuccess.bag",
-    #"/home/anton/projects/colliding-drone/rosbags/real_collisions/29-08-24/2024-08-29-22-24-00-2p5msCollisionSuccess.bag",
-    #"/home/anton/projects/colliding-drone/rosbags/real_collisions/29-08-24/2024-08-29-22-44-12-2p75msCollisionSuccess.bag",
-    #"/home/anton/projects/colliding-drone/rosbags/real_collisions/30-08-24/2024-08-30-17-33-30-3ms-collisionSuccess.bag",
-    #"/home/anton/projects/colliding-drone/rosbags/real_collisions/30-08-24/2024-08-30-18-41-16-3p25msCollisionSuccess.bag"
+    #"/home/antbre/projects/colliding-drone/rosbags/real_collisions/29-08-24/2024-08-29-21-46-03-replanMegaSuccess.bag",
+    "/home/antbre/projects/colliding-drone/rosbags/real_collisions/29-08-24/2024-08-29-22-13-37-2msCollisionSuccess.bag",
+    "/home/antbre/projects/colliding-drone/rosbags/real_collisions/29-08-24/2024-08-29-22-24-00-2p5msCollisionSuccess.bag",
+    "/home/antbre/projects/colliding-drone/rosbags/real_collisions/29-08-24/2024-08-29-22-44-12-2p75msCollisionSuccess.bag",
+    "/home/antbre/projects/colliding-drone/rosbags/real_collisions/30-08-24/2024-08-30-17-33-30-3ms-collisionSuccess.bag",
+    "/home/antbre/projects/colliding-drone/rosbags/real_collisions/30-08-24/2024-08-30-18-41-16-3p25msCollisionSuccess.bag"
     ]
 
 (t_estimator, estimator_p, estimator_pdot, estimator_att,
@@ -113,24 +112,24 @@ paths = [
     t_motorForces, motorForces)  = rosbag2data(paths[0])
 
 t_estimator = t_estimator - t_estimator[0]
-#fig = plot_pos_vel(t_estimator, 1, 
-#                   estimator_p.T, estimator_pdot.T,
-#                   np.array([0.0, 3.4, 1.75]), np.array([0.6, 0.6, 0.6]), Rotation.identity())
-#fig.set_size_inches((30, 20))
+fig = plot_pos_vel(t_estimator, 1, 
+                   estimator_p.T, estimator_pdot.T,
+                   np.array([0.0, 3.4, 1.75]), np.array([0.6, 0.6, 0.6]), Rotation.identity())
+fig.set_size_inches((30, 20))
 
-#for idx, path in enumerate(paths[1:]):
-#    (t_estimator, estimator_p, estimator_pdot, estimator_att,
-#    t_contact, contacts,
-#    t_motorForces, motorForces)  = rosbag2data(path)
-#
-#    t_estimator = t_estimator-t_estimator[0]
-#    
-#    if idx == 3:
-#        add_pos_line(fig.axes[0], t_estimator, estimator_p[:,1], alpha=1.0)
-#        add_vel_line(fig.axes[1], t_estimator, estimator_pdot[:,1], alpha=1.0)
-#    else: 
-#        add_pos_line(fig.axes[0], t_estimator, estimator_p[:,1], alpha=0.5)
-#        add_vel_line(fig.axes[1], t_estimator, estimator_pdot[:,1], alpha=0.5)
+for idx, path in enumerate(paths[1:]):
+    (t_estimator, estimator_p, estimator_pdot, estimator_att,
+    t_contact, contacts,
+    t_motorForces, motorForces)  = rosbag2data(path)
+
+    t_estimator = t_estimator-t_estimator[0]
+    
+    if idx == 3:
+        add_pos_line(fig.axes[0], t_estimator, estimator_p[:,1], alpha=1.0)
+        add_vel_line(fig.axes[1], t_estimator, estimator_pdot[:,1], alpha=1.0)
+    else: 
+        add_pos_line(fig.axes[0], t_estimator, estimator_p[:,1], alpha=0.5)
+        add_vel_line(fig.axes[1], t_estimator, estimator_pdot[:,1], alpha=0.5)
     
 # Find first contact index
 cIdx = -1 #np.argmin(np.any(contacts, axis=0))
@@ -151,9 +150,9 @@ orig_traj = lambda t: np.array([0.75 * np.sin(2*np.pi * t),
                                             1.75 * np.ones_like(t)])
 
 
-#fig.savefig("collisionRecovery.png", dpi=300, bbox_inches="tight", transparent=True)
+fig.savefig("collisionRecovery.pdf", dpi=300, bbox_inches="tight", transparent=True)
 
-fig = plot_topview(t_estimator[::5], estimator_p[::5, :].T, [tIdx, tIdx + 30, -1],
-                   np.array([-0.7, -0.25, 1.75]), np.array([0.6, 0.6, 0.6]), Rotation.identity(),
-                   orig_traj=orig_traj)
-fig.savefig("topViewReal.png", dpi=300, bbox_inches="tight", transparent=True)
+#fig = plot_topview(t_estimator[::5], estimator_p[::5, :].T, [tIdx, tIdx + 30, -1],
+#                   np.array([-0.7, -0.25, 1.75]), np.array([0.6, 0.6, 0.6]), Rotation.identity(),
+#                   orig_traj=orig_traj)
+#fig.savefig("topViewReal.svg", dpi=300, bbox_inches="tight", transparent=True)
